@@ -119,18 +119,12 @@ const seedDataIfEmpty = async () => {
   }
 };
 
+// Render-এ সচল থাকার জন্য পোর্ট অবধারিতভাবে লিসেন করতে হবে
 const PORT = process.env.PORT || 5000;
-
-// লোকাল ডেভেলপমেন্টের জন্য পোর্ট লিসেন করবে, কিন্তু Vercel-এর সার্ভারলেস এনভায়রনমেন্টে এটি এড়ানো হবে
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    seedDataIfEmpty();
-    console.log(`BDDPA API running locally on port ${PORT}`);
-  });
-} else {
-  // প্রোডাকশনে সার্ভারলেস ফাংশন প্রথমবার রান করার সময় সেডার কল করা
+app.listen(PORT, () => {
   seedDataIfEmpty();
-}
+  console.log(`BDDPA API running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+});
 
-// Vercel-এর জন্য এক্সপোর্ট করা আবশ্যক
+// ভবিষ্যতের স্কেলিং বা অন্য সার্ভারলেস প্ল্যাটফর্মের সামঞ্জস্যতার জন্য এক্সপোর্ট রাখা হলো
 module.exports = app;
