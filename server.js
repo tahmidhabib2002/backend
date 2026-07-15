@@ -37,6 +37,7 @@ app.use(cors({
   origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) : true,
   credentials: true
 }));
+
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -47,22 +48,26 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
+// ডেটাবেজ কানেকশন ইনিশিয়ালাইজ করা
 connectDatabase();
 
 app.use('/api', apiRateLimiter);
 app.use('/api/v1', apiRouter);
 
-// Serve the static frontend from the same Express host so /api/v1/* works
-// against a relative URL without CORS complications. Set SERVE_FRONTEND=false
-// to disable when hosting the frontend separately.
-if (process.env.SERVE_FRONTEND !== 'false') {
+// ফ্রন্টএন্ড স্ট্যাটিক ফাইল সার্ভ করার লজিক (প্রয়োজন না হলে SERVE_FRONTEND=false করে রাখবেন)
+if (process.env.SERVE_FRONTEND === 'true') {
   const frontendDir = path.resolve(__dirname, '..', 'frontend');
   app.use(express.static(frontendDir, { maxAge: '1h', index: 'index.html' }));
 
-  // Hash-based routing: any non-API GET falls back to index.html.
+  // Hash-routing হ্যান্ডেলার
   app.get(/^\/(?!api\/).*/, (req, res, next) => {
     if (req.method !== 'GET') return next();
     res.sendFile(path.join(frontendDir, 'index.html'));
+  });
+} else {
+  // বেসিক রুট রেসপন্স (API চ্যাকিংয়ের জন্য)
+  app.get('/', (req, res) => {
+    res.json({ message: 'BDDPA Backend API is running successfully' });
   });
 }
 
@@ -93,7 +98,6 @@ const seedDataIfEmpty = async () => {
     const homeConfig = await HomeContent.findOne({ key: 'homepage' });
     if (!homeConfig) await HomeContent.create({ key: 'homepage' });
 
-    // First-run Super Admin seed (only if env vars are set and no admin exists yet).
     const adminEmail = process.env.SEED_ADMIN_EMAIL;
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (adminEmail && adminPassword) {
@@ -116,7 +120,17 @@ const seedDataIfEmpty = async () => {
 };
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+
+// লোকাল ডেভেলপমেন্টের জন্য পোর্ট লিসেন করবে, কিন্তু Vercel-এর সার্ভারলেস এনভায়রনমেন্টে এটি এড়ানো হবে
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    seedDataIfEmpty();
+    console.log(`BDDPA API running locally on port ${PORT}`);
+  });
+} else {
+  // প্রোডাকশনে সার্ভারলেস ফাংশন প্রথমবার রান করার সময় সেডার কল করা
   seedDataIfEmpty();
-  console.log(`BDDPA API running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-});
+}
+
+// Vercel-এর জন্য এক্সপোর্ট করা আবশ্যক
+module.exports = app;
