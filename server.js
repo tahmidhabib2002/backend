@@ -28,6 +28,10 @@ app.use('/api/v1/notices', require('./routes/noticeRoutes'));
 app.use('/api/v1/cms', require('./routes/cmsRoutes'));
 app.use('/api/v1/admin', require('./routes/adminRoutes'));
 
+// ============ DIRECT APPLY ROUTE (জন্য পাবলিক রেজিস্ট্রেশন) ============
+const memberController = require('./controllers/memberController');
+app.post('/api/v1/apply', memberController.createMember);
+
 // ============ Health Check ============
 app.get('/api/v1/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
