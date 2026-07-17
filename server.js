@@ -28,6 +28,11 @@ app.use('/api/v1/notices', require('./routes/notices'));
 app.use('/api/v1/cms', require('./routes/cms'));
 app.use('/api/v1/admin', require('./routes/admin'));
 
+// ============ Direct Apply Route (Backup for Frontend) ============
+// এটি রাখার কারণে ফ্রন্টএন্ড যদি সরাসরি /apply-তেও হিট করে, তবে রেজিস্ট্রেশন সফল হবে
+const memberController = require('./controllers/memberController');
+app.post('/api/v1/apply', memberController.createMember);
+
 // ============ Health Check ============
 app.get('/api/v1/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
