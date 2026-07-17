@@ -6,9 +6,27 @@ require('dotenv').config();
 
 const app = express();
 
-// ============ CORS Configuration ============
+// ============ Dynamic CORS Configuration ============
+const allowedOrigins = [
+  'http://localhost:5500',
+  'http://localhost:3000',
+  'https://bddpa-bhola.vercel.app'
+];
+
 app.use(cors({
-  origin: ['http://localhost:5500', 'http://localhost:3000', 'https://bddpa-bhola.vercel.app', 'https://*.vercel.app'],
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const isAllowed = allowedOrigins.indexOf(origin) !== -1;
+    const isVercelSubdomain = /\.vercel\.app$/.test(origin); // এটি যেকোনো .vercel.app লিংক হ্যান্ডেল করবে
+    
+    if (isAllowed || isVercelSubdomain) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -29,7 +47,6 @@ app.use('/api/v1/cms', require('./routes/cms'));
 app.use('/api/v1/admin', require('./routes/admin'));
 
 // ============ Direct Apply Route (Backup for Frontend) ============
-// এটি রাখার কারণে ফ্রন্টএন্ড যদি সরাসরি /apply-তেও হিট করে, তবে রেজিস্ট্রেশন সফল হবে
 const memberController = require('./controllers/memberController');
 app.post('/api/v1/apply', memberController.createMember);
 
