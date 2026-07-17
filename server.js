@@ -22,15 +22,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ============ Routes ============
-app.use('/api/v1/auth', require('./routes/authRoutes'));
-app.use('/api/v1/members', require('./routes/memberRoutes'));
-app.use('/api/v1/notices', require('./routes/noticeRoutes'));
-app.use('/api/v1/cms', require('./routes/cmsRoutes'));
-app.use('/api/v1/admin', require('./routes/adminRoutes'));
-
-// ============ DIRECT APPLY ROUTE (জন্য পাবলিক রেজিস্ট্রেশন) ============
-const memberController = require('./controllers/memberController');
-app.post('/api/v1/apply', memberController.createMember);
+app.use('/api/v1/auth', require('./routes/auth'));
+app.use('/api/v1/members', require('./routes/members'));
+app.use('/api/v1/notices', require('./routes/notices'));
+app.use('/api/v1/cms', require('./routes/cms'));
+app.use('/api/v1/admin', require('./routes/admin'));
 
 // ============ Health Check ============
 app.get('/api/v1/health', (req, res) => {
