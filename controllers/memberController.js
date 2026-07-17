@@ -79,7 +79,10 @@ const createMember = async (req, res, next) => {
       profilePhoto,
       nidFront,
       nidBack,
-      degreeCertificate
+      degreeCertificate,
+      // Sync legacy fields with Cloudinary URLs for UI Compatibility
+      nidPhoto: nidFront,
+      degreePhoto: degreeCertificate
     };
 
     // Set status based on who is creating
@@ -160,6 +163,10 @@ const updateMember = async (req, res, next) => {
     if (req.body.degreeCertificate && req.body.degreeCertificate.startsWith('data:')) {
       req.body.degreeCertificate = await uploadFile(req.body.degreeCertificate, 'documents');
     }
+
+    // Sync legacy fields
+    req.body.nidPhoto = req.body.nidFront;
+    req.body.degreePhoto = req.body.degreeCertificate;
 
     req.body.updatedBy = req.user._id;
     member = await Member.findByIdAndUpdate(req.params.id, req.body, { 
