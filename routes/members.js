@@ -8,6 +8,9 @@ router.get('/', getMembers);
 router.get('/verify', verifyMemberLookup);
 router.get('/profile/:slug', getPublicProfile);
 
+// অনলাইন মেম্বারশিপ আবেদনের জন্য নতুন পাবলিক রাউট (কোনো অ্যাডমিন প্রটেকশন লাগবে না)
+router.post('/apply', createMember);
+
 router.post('/', protect, restrictTo('Super Admin', 'Admin'), validateMemberInput, createMember);
 router.put('/:id', protect, restrictTo('Super Admin', 'Admin', 'Editor'), updateMember);
 router.delete('/:id', protect, restrictTo('Super Admin', 'Admin'), deleteMember);
