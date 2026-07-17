@@ -13,7 +13,7 @@ const { protect, restrictTo } = require('../middlewares/authMiddleware');
 const { validateMemberInput } = require('../middlewares/validation');
 
 // ============ PUBLIC ROUTES (No Auth Required) ============
-router.post('/apply', createMember);            // Public registration (/api/v1/members/apply)
+router.post('/apply', createMember);            // Public registration
 router.get('/', getMembers);                    // Public directory
 router.get('/verify', verifyMemberLookup);      // Verification
 router.get('/profile/:slug', getPublicProfile); // Public profile
