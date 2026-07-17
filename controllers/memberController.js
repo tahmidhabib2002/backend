@@ -3,6 +3,7 @@ const Counter = require('../models/Counter');
 const ActivityLog = require('../models/ActivityLog');
 const cloudinary = require('../config/cloudinary');
 
+// ফাইল আপলোডের হেল্পার ফাংশন
 const uploadFile = async (base64Str, folderName) => {
   if (!base64Str || !base64Str.startsWith('data:')) return '';
   try {
@@ -17,15 +18,28 @@ const uploadFile = async (base64Str, folderName) => {
   }
 };
 
+// সদস্য আবেদন বা নতুন সদস্য তৈরি
 exports.createMember = async (req, res, next) => {
   try {
     const existingPhone = await Member.findOne({ phone: req.body.phone });
-    if (existingPhone) return res.status(400).json({ success: false, message: 'Phone number already registered.' });
+    if (existingPhone) {
+      return res.status(400).json({ success: false, message: 'Phone number already registered.' });
+    }
 
+    // ১. ফ্রন্টএন্ড-ব্যাকএন্ড ইমেজ ফিল্ড নেমিং ম্যাচিং (Naming Normalization)
+    if (req.body.nidPhoto) {
+      req.body.nidFront = req.body.nidFront || req.body.nidPhoto;
+    }
+    if (req.body.degreePhoto) {
+      req.body.degreeCertificate = req.body.degreeCertificate || req.body.degreePhoto;
+    }
+
+    // ২. মেম্বার আইডি কাউন্টার এবং জেনারেশন
     const counter = await Counter.findOneAndUpdate({ id: 'memberId' }, { $inc: { seq: 1 } }, { new: true, upsert: true });
     const seqStr = String(counter.seq).padStart(4, '0');
     const genMemberId = `BDPA-${seqStr}`;
 
+    // ৩. স্ল্যাগ জেনারেশন (সদস্য প্রোফাইল লিংকের জন্য)
     let baseSlug = req.body.nameEn.toLowerCase().trim().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, '-');
     let uniqueSlug = baseSlug;
     let slugExists = await Member.findOne({ slug: uniqueSlug });
@@ -36,11 +50,13 @@ exports.createMember = async (req, res, next) => {
       suffix++;
     }
 
+    // ৪. ছবি আপলোড হ্যান্ডলিং
     const profilePhoto = await uploadFile(req.body.profilePhoto, 'profiles');
     const nidFront = await uploadFile(req.body.nidFront, 'documents');
     const nidBack = await uploadFile(req.body.nidBack, 'documents');
     const degreeCertificate = await uploadFile(req.body.degreeCertificate, 'documents');
 
+    // ৫. সিকিউরিটি ফিল্ড ভ্যালিডেশন (পাবলিক আবেদনের ক্ষেত্রে ডাটা ফোর্স করা)
     const memberData = {
       ...req.body,
       memberId: genMemberId,
@@ -48,24 +64,58 @@ exports.createMember = async (req, res, next) => {
       profilePhoto,
       nidFront,
       nidBack,
-      degreeCertificate,
-      createdBy: req.user?._id
+      degreeCertificate
     };
+
+    if (req.user) {
+      // যদি লগইন করা অ্যাডমিন মেম্বার তৈরি করেন
+      memberData.createdBy = req.user._id;
+    } else {
+      // যদি পাবলিক ইউজার নিজে রেজিস্ট্রেশন ফর্ম থেকে আবেদন করেন
+      memberData.status = 'Pending';
+      memberData.roleType = 'General Member';
+      memberData.executivePost = '';
+      memberData.joiningDate = new Date().toISOString();
+    }
 
     const newMember = await Member.create(memberData);
     const publicUrl = `${process.env.FRONTEND_URL || ''}/#/members/${uniqueSlug}`;
     newMember.qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(publicUrl)}`;
     await newMember.save();
 
-    await ActivityLog.create({ user: req.user._id, action: 'Create Member', details: `Created ${newMember.nameEn} (ID: ${genMemberId})`, ipAddress: req.ip || '127.0.0.1' });
+    // ৬. ক্র্যাশ ছাড়া অ্যাক্টিভিটি লগ নিশ্চিত করা (Defensive Log)
+    if (req.user) {
+      await ActivityLog.create({ 
+        user: req.user._id, 
+        action: 'Create Member', 
+        details: `Created ${newMember.nameEn} (ID: ${genMemberId})`, 
+        ipAddress: req.ip || '127.0.0.1' 
+      });
+    } else {
+      await ActivityLog.create({ 
+        action: 'Public Registration Request', 
+        details: `Pending Application received from ${newMember.nameEn} (ID: ${genMemberId})`, 
+        ipAddress: req.ip || '127.0.0.1' 
+      });
+    }
+
     res.status(201).json({ success: true, data: newMember });
   } catch (error) { next(error); }
 };
 
+// সদস্য তথ্য এডিট
 exports.updateMember = async (req, res, next) => {
   try {
     let member = await Member.findById(req.params.id);
     if (!member) return res.status(404).json({ success: false, message: 'Member profile not found.' });
+
+    // ইমেজ ফিল্ড নেমিং ম্যাচিং
+    if (req.body.nidPhoto) {
+      req.body.nidFront = req.body.nidFront || req.body.nidPhoto;
+    }
+    if (req.body.degreePhoto) {
+      req.body.degreeCertificate = req.body.degreeCertificate || req.body.degreePhoto;
+    }
 
     if (req.body.profilePhoto && req.body.profilePhoto.startsWith('data:')) {
       req.body.profilePhoto = await uploadFile(req.body.profilePhoto, 'profiles');
@@ -88,6 +138,7 @@ exports.updateMember = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// সদস্য ডিলিট
 exports.deleteMember = async (req, res, next) => {
   try {
     const member = await Member.findById(req.params.id);
@@ -99,6 +150,7 @@ exports.deleteMember = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// ডাটাবেজ থেকে ফিল্টারিং ও সার্চিং তালিকা
 exports.getMembers = async (req, res, next) => {
   try {
     const { search, qualification, upazila, status, roleType, sort } = req.query;
@@ -128,6 +180,7 @@ exports.getMembers = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// পাবলিক প্রোফাইল প্রিভিউ (সিকিউরড ডকুমেন্ট হাইড রাখা)
 exports.getPublicProfile = async (req, res, next) => {
   try {
     const member = await Member.findOne({ slug: req.params.slug })
@@ -137,6 +190,7 @@ exports.getPublicProfile = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// কিউআর কোড স্ক্যান বা ভেরিফিকেশন পোর্টাল কুয়েরি
 exports.verifyMemberLookup = async (req, res, next) => {
   try {
     const { query } = req.query;
@@ -150,6 +204,7 @@ exports.verifyMemberLookup = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// মেম্বারদের সিএসভি এক্সপোর্ট
 exports.exportMembersCSV = async (req, res, next) => {
   try {
     const members = await Member.find().sort({ memberId: 1 });
