@@ -13,7 +13,9 @@ const { protect, restrictTo } = require('../middlewares/authMiddleware');
 const { validateMemberInput } = require('../middlewares/validation');
 
 // ============ PUBLIC ROUTES (No Auth Required) ============
-router.post('/apply', createMember);        // Public registration
+// নোট: /apply এখন server.js এ ডাইরেক্ট হ্যান্ডেল করা হচ্ছে
+// কিন্তু এখানেও রেখে দিচ্ছি ব্যাকআপ হিসেবে
+router.post('/apply', createMember);        // Public registration (ব্যাকআপ)
 router.get('/', getMembers);                // Public directory
 router.get('/verify', verifyMemberLookup);  // Verification
 router.get('/profile/:slug', getPublicProfile); // Public profile
