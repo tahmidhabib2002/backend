@@ -10,7 +10,10 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5500',
   'http://localhost:3000',
-  'https://bddpa-bhola.vercel.app'
+  'https://bddpa-bhola.vercel.app',
+  'https://bddpa.pro.bd',      // 👈 আপনার নতুন কাস্টম ডোমেইন
+  'https://www.bddpa.pro.bd',  // 👈 www সহ কাস্টম ডোমেইন
+  process.env.FRONTEND_URL     // 👈 Render এর Env variable থেকেও অটো নিবে
 ];
 
 app.use(cors({
